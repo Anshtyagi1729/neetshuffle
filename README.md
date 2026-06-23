@@ -42,7 +42,9 @@ python -m neetshuffle today 4
 neetshuffle today [num]    # today's jumble (default 4 problems); stable all day
 neetshuffle done <n>       # mark problem #n of today's set as solved
 neetshuffle reroll [num]   # throw away today's set and draw a fresh one
+neetshuffle import <file>  # bulk-mark problems you've already solved
 neetshuffle stats          # overall progress + per-topic (solved problems only)
+neetshuffle notion ...     # mirror solved problems to a Notion database
 neetshuffle reset          # wipe all progress (asks to confirm; -y to skip)
 ```
 
@@ -70,6 +72,72 @@ $ neetshuffle done 1
 ✓ Marked done: Sliding Window Maximum
 3 left in today's jumble.
 ```
+
+## Importing problems you've already solved
+
+If you're not starting from zero, bulk-mark what you've done so neetshuffle
+won't draw them again:
+
+```bash
+neetshuffle import solved.txt        # from a file
+pbpaste | neetshuffle import -       # or from stdin
+neetshuffle import solved.txt --date 2025-12-01   # set the solved-on date
+```
+
+The file is one problem per line, in **any mix** of these formats — blank lines
+and `#` comments are ignored:
+
+```
+https://leetcode.com/problems/two-sum/
+valid-anagram
+Group Anagrams
+```
+
+Matching is forgiving (case- and punctuation-insensitive). Anything that isn't
+part of the NeetCode 150 is reported back so you can fix typos.
+
+## Mirroring to Notion
+
+neetshuffle can push your solved problems into a Notion database as tidy rows
+(Problem, Link, Topic, Solved-on date, Status), each with a ✅ icon. Topics
+appear here only for problems you've **already solved**, consistent with the
+topic-blind rule.
+
+**One-time setup**
+
+1. Create an internal integration at
+   <https://www.notion.so/my-integrations> and copy its **token**
+   (`ntn_...` / `secret_...`).
+2. In Notion, open the page you want the database created under, and **share
+   that page with your integration** (`•••` → *Connections* → add it).
+3. Grab the page id — it's the 32-hex chunk in the page URL.
+
+```bash
+export NEETSHUFFLE_NOTION_TOKEN="ntn_xxx"          # keeps the token out of disk
+neetshuffle notion setup --parent-page-id <PAGE_ID>
+neetshuffle notion sync
+```
+
+Prefer an existing database? Share it with the integration and use
+`--database-id <DB_ID>` instead of `--parent-page-id`.
+
+**Day-to-day**
+
+```bash
+neetshuffle notion sync      # push everything solved-but-not-yet-mirrored
+neetshuffle notion status    # connection + how many problems are mirrored
+```
+
+Add `--auto` to `setup` to mirror automatically each time you mark a problem
+done (best-effort: a network blip never blocks `done`).
+
+**Token handling.** The token is read from `$NEETSHUFFLE_NOTION_TOKEN` by
+default and is **not** written to disk. If you'd rather store it, pass
+`--token <T> --save-token` and it's saved to the config file with `0600`
+permissions. The config lives at `$XDG_CONFIG_HOME/neetshuffle/config.json`
+(default `~/.config/neetshuffle/config.json`), separate from your progress, and
+records which problems have already been pushed so re-running `sync` never
+creates duplicates.
 
 ## How the shuffle works
 
