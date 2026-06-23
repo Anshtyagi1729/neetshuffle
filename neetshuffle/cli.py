@@ -23,7 +23,7 @@ import tempfile
 import time
 
 from . import notion
-from .problems import NEETCODE_150, url_for
+from .problems import NEETCODE_150, gist_for, url_for
 
 DEFAULT_COUNT = 4
 MIN_COUNT = 1
@@ -83,6 +83,8 @@ def new_state():
         "done": [],          # slugs solved (never drawn again)
         "solved_at": {},     # slug -> ISO date (may be None if unknown)
         "today": None,       # {"date", "slugs", "done", "nonce"}
+        "revise": [],        # slugs flagged for revision (may include solved)
+        "revise_set": None,  # current practice draw: {"slugs", "done"}
     }
 
 
@@ -151,6 +153,26 @@ def _sanitize_state(data):
                 "done": tdone,
                 "nonce": nonce if isinstance(nonce, int) else 0,
             }
+
+    revise = data.get("revise", [])
+    if isinstance(revise, list):
+        seen = set()
+        clean = []
+        for s in revise:
+            if isinstance(s, str) and s in valid and s not in seen:
+                seen.add(s)
+                clean.append(s)
+        state["revise"] = clean
+
+    rset = data.get("revise_set")
+    if isinstance(rset, dict):
+        slugs = rset.get("slugs")
+        rdone = rset.get("done", [])
+        if isinstance(slugs, list) and all(
+                isinstance(s, str) and s in valid for s in slugs):
+            rdone = [s for s in rdone if isinstance(s, str) and s in slugs] \
+                if isinstance(rdone, list) else []
+            state["revise_set"] = {"slugs": slugs, "done": rdone}
     return state
 
 
@@ -294,6 +316,15 @@ def fail(msg, code=1):
     sys.exit(code)
 
 
+def _reveal(slug):
+    """Print the topic and optimal-approach gist for a just-solved problem."""
+    _name, topic = _BY_SLUG[slug]
+    print("   Topic:   {}".format(topic))
+    gist = gist_for(slug)
+    if gist:
+        print("   Optimal: {}".format(gist))
+
+
 def print_today(state):
     day = state["today"]
     slugs = day["slugs"]
@@ -359,8 +390,10 @@ def cmd_done(state, path, args):
     mark_solved(state, slug, date)
     save_state(path, state)
 
-    # Deliberately NO topic reveal here -- keep your brain guessing.
+    # Now that you've solved it, reveal the topic + optimal approach as a
+    # post-solve learning beat (it's hidden only *before* you solve).
     print("✓ Marked done: {}".format(name))
+    _reveal(slug)
     left = len(slugs) - len(day["done"])
     if left == 0:
         print("That's the whole set. Nice work today. 🎯")
@@ -475,6 +508,151 @@ def cmd_reset(state, path, args):
             fail("aborted.")
     save_state(path, new_state())
     print("Progress reset. Fresh start. 🌱")
+
+
+# --------------------------------------------------------------------------
+# Revision list
+# --------------------------------------------------------------------------
+
+def _resolve_ref(state, token):
+    """Resolve a problem reference to a slug. A bare integer means "problem #n
+    in today's set"; otherwise it's treated as a slug / name / LeetCode URL."""
+    token = token.strip()
+    if token.isdigit():
+        day = state.get("today")
+        if day and day.get("slugs"):
+            i = int(token)
+            if 1 <= i <= len(day["slugs"]):
+                return day["slugs"][i - 1]
+        return None
+    return _resolve_to_slug(token)
+
+
+def cmd_revise_add(state, path, args):
+    added, dup, unknown = [], [], []
+    for ref in args.refs:
+        slug = _resolve_ref(state, ref)
+        if slug is None:
+            unknown.append(ref)
+        elif slug in state["revise"]:
+            dup.append(slug)
+        else:
+            state["revise"].append(slug)
+            added.append(slug)
+    save_state(path, state)
+    print("Added {} to revision ({} already listed, {} unrecognised).".format(
+        len(added), len(dup), len(unknown)))
+    for s in added:
+        print("  + {}".format(_BY_SLUG[s][0]))
+    for u in unknown:
+        print("  ? {}".format(u))
+
+
+def cmd_revise_remove(state, path, args):
+    removed, missing = [], []
+    for ref in args.refs:
+        slug = _resolve_ref(state, ref)
+        if slug and slug in state["revise"]:
+            state["revise"].remove(slug)
+            removed.append(slug)
+        else:
+            missing.append(ref)
+    save_state(path, state)
+    print("Removed {} from revision.".format(len(removed)))
+    for s in removed:
+        print("  - {}".format(_BY_SLUG[s][0]))
+    for m in missing:
+        print("  ? not on the list: {}".format(m))
+
+
+def cmd_revise_list(state, path, args):
+    rev = state["revise"]
+    if not rev:
+        print("Revision list is empty.")
+        print("Add with:  neetshuffle revise add <today-number | name | url>")
+        return
+    print("📝 Revision list ({} problem{}):".format(
+        len(rev), "" if len(rev) == 1 else "s"))
+    for i, slug in enumerate(rev, start=1):
+        print("  {}. {}".format(i, _BY_SLUG[slug][0]))
+        print("       {}".format(url_for(slug)))
+    print("\nPractice them with:  neetshuffle revise draw")
+
+
+def cmd_revise_clear(state, path, args):
+    n = len(state["revise"])
+    state["revise"] = []
+    state["revise_set"] = None
+    save_state(path, state)
+    print("Cleared {} problem(s) from revision.".format(n))
+
+
+def cmd_revise_draw(state, path, args):
+    rev = state["revise"]
+    if not rev:
+        fail("revision list is empty. Add problems first: "
+             "neetshuffle revise add ...")
+    count = args.count if args.count is not None else min(DEFAULT_COUNT, len(rev))
+    count = max(MIN_COUNT, min(count, len(rev)))
+
+    # A fresh shuffle each time (revision practice isn't tied to the calendar).
+    pool = rev[:]
+    random.SystemRandom().shuffle(pool)
+    slugs = pool[:count]
+    state["revise_set"] = {"slugs": slugs, "done": []}
+    save_state(path, state)
+
+    print("🔁 Revision set ({} problem{}) — topics still hidden:\n".format(
+        len(slugs), "" if len(slugs) == 1 else "s"))
+    for i, slug in enumerate(slugs, start=1):
+        print("  [ ] {}. {}".format(i, _BY_SLUG[slug][0]))
+        print("        {}".format(url_for(slug)))
+    print("\nWhen solved:  neetshuffle revise done <number>")
+
+
+def cmd_revise_done(state, path, args):
+    rset = state.get("revise_set")
+    if not rset or not rset.get("slugs"):
+        fail("no revision set drawn yet. Run `neetshuffle revise draw` first.")
+
+    n = args.number
+    slugs = rset["slugs"]
+    if n < 1 or n > len(slugs):
+        fail("pick a number between 1 and {}.".format(len(slugs)))
+
+    slug = slugs[n - 1]
+    name = _BY_SLUG[slug][0]
+    if slug in rset.get("done", []):
+        print("Already revised: {}".format(name))
+        return
+
+    rset.setdefault("done", []).append(slug)
+    # Revising it clears it from the revision list; re-add any time you want
+    # another pass.
+    if slug in state["revise"]:
+        state["revise"].remove(slug)
+    save_state(path, state)
+
+    print("✓ Revised: {}".format(name))
+    _reveal(slug)
+    left = len(slugs) - len(rset["done"])
+    if left == 0:
+        print("Revision set complete. 🔁")
+    else:
+        print("{} left in this revision set.".format(left))
+
+
+def cmd_revise(state, path, args):
+    action = getattr(args, "revise_action", None)
+    handlers = {
+        "add": cmd_revise_add,
+        "remove": cmd_revise_remove,
+        "list": cmd_revise_list,
+        "clear": cmd_revise_clear,
+        "draw": cmd_revise_draw,
+        "done": cmd_revise_done,
+    }
+    handlers.get(action, cmd_revise_list)(state, path, args)
 
 
 # --------------------------------------------------------------------------
@@ -666,6 +844,25 @@ def build_parser():
                           help="solved-on date for imported problems "
                                "(YYYY-MM-DD; default today)")
     s_import.set_defaults(func=cmd_import)
+
+    s_revise = sub.add_parser("revise", help="manage a personal revision list")
+    s_revise.set_defaults(func=cmd_revise)
+    rsub = s_revise.add_subparsers(dest="revise_action")
+    r_add = rsub.add_parser(
+        "add", help="add problem(s) by today-number, name, slug, or URL")
+    r_add.add_argument("refs", nargs="+",
+                       help="today's problem number(s) and/or names/slugs/URLs")
+    r_rm = rsub.add_parser("remove", help="remove problem(s) from the list")
+    r_rm.add_argument("refs", nargs="+",
+                      help="revision items by name/slug/URL (or today-number)")
+    rsub.add_parser("list", help="show the revision list")
+    rsub.add_parser("clear", help="empty the revision list")
+    r_draw = rsub.add_parser(
+        "draw", help="draw a jumbled practice set from the revision list")
+    r_draw.add_argument("count", nargs="?", type=int, default=None,
+                        help="how many problems (default %d)" % DEFAULT_COUNT)
+    r_done = rsub.add_parser("done", help="mark #n of the revision set as revised")
+    r_done.add_argument("number", type=int, help="problem number from `revise draw`")
 
     s_stats = sub.add_parser("stats", help="show overall + per-topic progress")
     s_stats.set_defaults(func=cmd_stats)

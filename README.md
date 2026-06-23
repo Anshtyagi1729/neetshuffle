@@ -8,9 +8,14 @@ you from pattern-matching ("this is in the sliding-window section, so I'll use
 a sliding window") and force you to actually recognise the problem and build
 genuine problem-solving. Solved problems are tracked so they never repeat.
 
-Topics only ever appear in `stats`, and only for problems you've **already
-solved** — a retrospective view of where your reps have gone, which can't help
-you cheat on a problem you haven't done yet.
+Topics stay hidden until you **mark a problem done** — at which point
+neetshuffle reveals the topic *and* a one-line optimal-approach hint as a
+post-solve learning beat. They also appear in `stats`, only for problems
+you've already solved. Either way, nothing is revealed before you've done the
+thinking yourself.
+
+You can also keep a **revision list**: flag tricky problems and re-practice
+them later, still topic-blind, from the CLI.
 
 ## Install
 
@@ -40,9 +45,10 @@ python -m neetshuffle today 4
 
 ```bash
 neetshuffle today [num]    # today's jumble (default 4 problems); stable all day
-neetshuffle done <n>       # mark problem #n of today's set as solved
+neetshuffle done <n>       # mark #n solved -> reveals its topic + optimal hint
 neetshuffle reroll [num]   # throw away today's set and draw a fresh one
 neetshuffle import <file>  # bulk-mark problems you've already solved
+neetshuffle revise ...     # keep a revision list and re-practice from it
 neetshuffle stats          # overall progress + per-topic (solved problems only)
 neetshuffle notion ...     # mirror solved problems to a Notion database
 neetshuffle reset          # wipe all progress (asks to confirm; -y to skip)
@@ -95,6 +101,26 @@ Group Anagrams
 
 Matching is forgiving (case- and punctuation-insensitive). Anything that isn't
 part of the NeetCode 150 is reported back so you can fix typos.
+
+## Revision list
+
+Flag problems you want to come back to and re-practice them later — still
+topic-blind, drawn in a fresh jumble each time.
+
+```bash
+neetshuffle revise add 2                  # add problem #2 from today's set
+neetshuffle revise add "Two Sum" edit-distance   # ...or by name / slug / URL
+neetshuffle revise list                   # see what's on the list
+neetshuffle revise draw [num]             # draw a practice set from the list
+neetshuffle revise done <n>               # mark #n revised -> reveals topic+hint
+neetshuffle revise remove <name|url>      # take something off the list
+neetshuffle revise clear                  # empty the list
+```
+
+`revise add` accepts a today's-set number, a problem name, a slug, or a
+LeetCode URL. Marking a problem revised reveals its topic and optimal-approach
+hint (just like `done`) and drops it from the list — re-add it any time you
+want another pass.
 
 ## Mirroring to Notion
 
