@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neetshuffle"
+version = "0.1.0"
+description = "A daily, topic-blind NeetCode 150 problem shuffler for building genuine problem-solving."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "Ansh Tyagi" }]
+keywords = ["neetcode", "leetcode", "cli", "study", "spaced-practice"]
+classifiers = [
+    "Environment :: Console",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+# No runtime dependencies: standard library only.
+dependencies = []
+
+[project.scripts]
+neetshuffle = "neetshuffle.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/anshtyagi/neetshuffle"
+
+[tool.setuptools]
+packages = ["neetshuffle"]

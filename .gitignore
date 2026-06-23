@@ -1,0 +1,22 @@
+# Progress / user data
+progress.json
+*.corrupt
+.progress-*.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Virtual envs
+venv/
+.venv/
+env/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
