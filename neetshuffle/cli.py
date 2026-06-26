@@ -22,6 +22,7 @@ import sys
 import tempfile
 import time
 
+from . import __version__
 from . import notion
 from . import pslist
 from .problems import NEETCODE_150, gist_for, url_for
@@ -817,6 +818,8 @@ def build_parser():
     p = argparse.ArgumentParser(
         prog="neetshuffle",
         description="Daily topic-blind NeetCode 150 problem shuffler.")
+    p.add_argument("--version", action="version",
+                   version="neetshuffle " + __version__)
     p.add_argument("--file", dest="file", default=None,
                    help="progress file path (default: $XDG_DATA_HOME/neetshuffle/"
                         "progress.json, or $NEETSHUFFLE_FILE).")
