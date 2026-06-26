@@ -52,6 +52,7 @@ neetshuffle revise ...     # keep a revision list and re-practice from it
 neetshuffle stats          # overall progress + per-topic (solved problems only)
 neetshuffle notion ...     # mirror solved problems to a Notion database
 neetshuffle reset          # wipe all progress (asks to confirm; -y to skip)
+neetshuffle pslist ...     # the roadmap set: solve by topic / difficulty / jumbled
 ```
 
 Bare `neetshuffle` is the same as `neetshuffle today`.
@@ -164,6 +165,74 @@ permissions. The config lives at `$XDG_CONFIG_HOME/neetshuffle/config.json`
 (default `~/.config/neetshuffle/config.json`), separate from your progress, and
 records which problems have already been pushed so re-running `sync` never
 creates duplicates.
+
+## psList — the roadmap problem set
+
+Alongside the topic-blind NeetCode flow there's **psList**: a large roadmap of
+problems pulled from LeetCode, CSES, AtCoder, Codeforces, USACO and more. Unlike
+the NeetCode flow, psList is meant to be *filtered* — practise **by topic**, **by
+difficulty**, or as a pure **jumble** across everything.
+
+It comes in two **modes**, each with its **own progress** (done / stats /
+revision) kept in a separate file, so nothing leaks into your NeetCode progress
+or between modes:
+
+| Mode | Problems | Topics | Use it for |
+|------|----------|--------|------------|
+| `cracked` *(default)* | 850 | 40 | the full roadmap, incl. advanced topics & DP Levels 1–4 |
+| `faang` | 377 | 29 | the FAANG-essentials subset |
+
+Pick the mode with `--mode`, **placed before the subcommand**:
+
+```bash
+neetshuffle pslist --mode faang draw
+neetshuffle pslist --mode cracked topics     # cracked is the default, so --mode is optional
+```
+
+### Command reference
+
+```bash
+# Drawing & solving
+neetshuffle pslist draw [num]                  # jumble across all topics & difficulties
+neetshuffle pslist draw --topic "Greedy"       # topic-wise
+neetshuffle pslist draw --difficulty Hard      # difficulty-wise
+neetshuffle pslist draw 5 --topic "DP Level 3" --difficulty Harder
+neetshuffle pslist draw --source cses --min-importance 3   # narrow further
+neetshuffle pslist done <n>                     # mark #n of the current set solved
+
+# Browsing & progress
+neetshuffle pslist topics                       # topics with solved/total counts
+neetshuffle pslist difficulties                 # difficulty bands with counts
+neetshuffle pslist list --topic Tries --undone  # browse the catalog (sorted, filterable)
+neetshuffle pslist stats                        # overall progress for the active mode
+
+# Revision list (mirrors the NeetCode `revise` flow)
+neetshuffle pslist revise add <draw-# | name | url>
+neetshuffle pslist revise list
+neetshuffle pslist revise draw [num]
+neetshuffle pslist revise done <n>
+neetshuffle pslist revise remove <name | url>
+neetshuffle pslist revise clear
+
+neetshuffle pslist reset                         # wipe progress for the active mode only
+```
+
+Filters combine on `draw` and `list`:
+
+- `--topic <name>` — case-insensitive, matches a partial name (see `pslist topics`).
+- `--difficulty <band>` — one of `Easy`, `Easy+`, `Normal`, `Normal+`, `Hard`,
+  `Harder`, `Insane`, `Expert`, `Master`, `Grandmaster`, `Glitched`, `Mythic`,
+  `Mythic+` (cracked mode adds the top three bands).
+- `--source <judge>` — `leetcode`, `cses`, `atcoder`, `codeforces`, `usaco`, …
+- `--min-importance <0-3>` — keep only problems at/above that priority.
+- `list` also takes `--undone` (hide solved) and `--limit <n>`.
+
+A few problems live under more than one topic; solving one marks it done
+everywhere it's listed.
+
+Progress lives at `$XDG_DATA_HOME/neetshuffle/pslist_progress_<mode>.json`
+(override the directory with `NEETSHUFFLE_PSLIST_DIR`), written atomically with
+`0600` permissions just like the NeetCode progress file.
 
 ## How the shuffle works
 

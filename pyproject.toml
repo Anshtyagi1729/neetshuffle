@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neetshuffle"
-version = "0.3.0"
-description = "A daily, topic-blind NeetCode 150 problem shuffler for building genuine problem-solving."
+version = "0.4.0"
+description = "A topic-blind NeetCode 150 shuffler plus psList: a filterable roadmap problem set (by topic, difficulty, or jumbled)."
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "MIT" }

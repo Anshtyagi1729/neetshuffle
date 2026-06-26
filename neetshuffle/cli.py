@@ -23,6 +23,7 @@ import tempfile
 import time
 
 from . import notion
+from . import pslist
 from .problems import NEETCODE_150, gist_for, url_for
 
 DEFAULT_COUNT = 4
@@ -893,6 +894,8 @@ def build_parser():
 
     nsub.add_parser("sync", help="push all solved problems not yet in Notion")
     nsub.add_parser("status", help="show Notion connection + mirror status")
+
+    pslist.register(sub)
 
     return p
 
